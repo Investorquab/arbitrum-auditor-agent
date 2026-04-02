@@ -1,0 +1,28 @@
+{
+  "name": "arbitrum-contract-auditor",
+  "version": "1.0.0",
+  "description": "AI-powered smart contract security auditor for Arbitrum with on-chain proof-of-audit",
+  "main": "src/agent.js",
+  "type": "module",
+  "scripts": {
+    "audit": "node src/agent.js audit",
+    "register": "node src/agent.js register",
+    "test": "node src/agent.js audit 0x1F98431c8aD98523631AE4a59f267346ea31F984 --network sepolia --dry-run"
+  },
+  "dependencies": {
+    "viem": "^2.21.0",
+    "dotenv": "^16.4.5"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "arbitrum",
+    "security",
+    "audit",
+    "smart-contracts",
+    "ai-agent",
+    "defi"
+  ],
+  "license": "MIT"
+}
