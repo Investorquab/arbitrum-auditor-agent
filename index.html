@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Arbitrum Contract Auditor</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --blue: #1b4bff;
+    --cyan: #28e0ff;
+    --bg: #050810;
+    --bg2: #090d1a;
+    --grid: rgba(27,75,255,0.07);
+    --text: #e8eeff;
+    --muted: #5a6490;
+    --card: rgba(255,255,255,0.03);
+    --border: rgba(27,75,255,0.2);
+    --green: #00ff88;
+    --yellow: #ffd700;
+    --red: #ff4466;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(var(--grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size: 60px 60px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* NAV */
+  nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.2rem 2rem;
+    border-bottom: 1px solid var(--border);
+    background: rgba(5,8,16,0.9);
+    backdrop-filter: blur(20px);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .logo { font-family: 'Space Mono', monospace; font-size: 1rem; font-weight: 700; color: var(--cyan); }
+  .logo span { color: var(--blue); }
+  .nav-badge {
+    display: flex; align-items: center; gap: 0.5rem;
+    background: rgba(0,255,136,0.08);
+    border: 1px solid rgba(0,255,136,0.2);
+    border-radius: 100px;
+    padding: 0.3rem 0.9rem;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--green);
+  }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  /* HERO */
+  .hero {
+    text-align: center;
+    padding: 5rem 2rem 3rem;
+    position: relative;
+    z-index: 1;
+  }
+  h1 {
+    font-size: clamp(2.2rem, 5vw, 4rem);
+    font-weight: 800;
+    letter-spacing: -2px;
+    line-height: 1.05;
+    margin-bottom: 1rem;
+  }
+  h1 em {
+    font-style: normal;
+    background: linear-gradient(135deg, var(--blue), var(--cyan));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .hero-sub { color: var(--muted); font-size: 1.05rem; max-width: 500px; margin: 0 auto 2.5rem; }
+
+  /* AUDIT BOX */
+  .audit-section {
+    max-width: 700px;
+    margin: 0 auto 4rem;
+    padding: 0 1.5rem;
+    position: relative;
+    z-index: 1;
+  }
+  .audit-box {
+    background: rgba(9,13,26,0.9);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 2rem;
+    box-shadow: 0 30px 80px rgba(0,0,0,0.5);
+  }
+  .input-row {
+    display: flex;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+  }
+  .addr-input {
+    flex: 1;
+    min-width: 200px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.85rem 1rem;
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    font-size: 0.82rem;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .addr-input:focus { border-color: var(--blue); }
+  .addr-input::placeholder { color: var(--muted); }
+  .network-select {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.85rem 1rem;
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    font-size: 0.82rem;
+    outline: none;
+    cursor: pointer;
+  }
+  .audit-btn {
+    width: 100%;
+    background: var(--blue);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 0.9rem;
+    font-family: 'Syne', sans-serif;
+    font-size: 0.95rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-transform: uppercase;
+  }
+  .audit-btn:hover { background: #3a6aff; transform: translateY(-1px); }
+  .audit-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+  /* EXAMPLES */
+  .examples {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-top: 0.75rem;
+  }
+  .example-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 0.3rem 0.7rem;
+    color: var(--muted);
+    font-family: 'Space Mono', monospace;
+    font-size: 0.7rem;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .example-btn:hover { border-color: var(--cyan); color: var(--cyan); }
+
+  /* LOADING */
+  .loading {
+    display: none;
+    text-align: center;
+    padding: 2rem;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.82rem;
+    color: var(--muted);
+  }
+  .spinner {
+    width: 32px; height: 32px;
+    border: 2px solid var(--border);
+    border-top-color: var(--blue);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 1rem;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* RESULTS */
+  .result { display: none; margin-top: 1.5rem; }
+
+  .result-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .contract-name { font-size: 1.1rem; font-weight: 800; }
+  .contract-addr { font-family: 'Space Mono', monospace; font-size: 0.72rem; color: var(--muted); margin-top: 0.2rem; }
+
+  .risk-pill {
+    padding: 0.5rem 1.2rem;
+    border-radius: 6px;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+  }
+  .risk-LOW { background: rgba(0,255,136,0.1); color: var(--green); border: 1px solid rgba(0,255,136,0.3); }
+  .risk-MEDIUM { background: rgba(255,215,0,0.1); color: var(--yellow); border: 1px solid rgba(255,215,0,0.3); }
+  .risk-HIGH { background: rgba(255,68,102,0.1); color: var(--red); border: 1px solid rgba(255,68,102,0.3); }
+  .risk-CRITICAL { background: rgba(255,0,0,0.15); color: #ff2244; border: 1px solid rgba(255,0,0,0.3); }
+
+  .summary-text { color: var(--muted); font-size: 0.9rem; line-height: 1.7; margin-bottom: 1.5rem; }
+
+  .findings-title {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--muted);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 0.75rem;
+  }
+
+  .finding {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 0.75rem;
+    transition: border-color 0.2s;
+  }
+  .finding:hover { border-color: rgba(27,75,255,0.4); }
+  .finding-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.4rem; }
+  .finding-sev {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.68rem;
+    letter-spacing: 1px;
+    padding: 0.2rem 0.6rem;
+    border-radius: 4px;
+  }
+  .sev-CRITICAL { background: rgba(255,0,0,0.15); color: #ff2244; }
+  .sev-HIGH { background: rgba(255,68,102,0.1); color: var(--red); }
+  .sev-MEDIUM { background: rgba(255,215,0,0.1); color: var(--yellow); }
+  .sev-LOW { background: rgba(100,153,255,0.1); color: #88aaff; }
+  .sev-INFO { background: rgba(90,100,144,0.2); color: var(--muted); }
+  .finding-title { font-size: 0.88rem; font-weight: 700; }
+  .finding-desc { font-size: 0.82rem; color: var(--muted); line-height: 1.6; margin-top: 0.4rem; }
+  .finding-rec { font-size: 0.8rem; color: var(--cyan); margin-top: 0.4rem; }
+
+  .cats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 0.5rem;
+    margin-top: 1rem;
+  }
+  .cat-row { display: flex; align-items: center; gap: 0.75rem; padding: 0.4rem 0; }
+  .cat-name { font-size: 0.78rem; color: var(--muted); width: 140px; flex-shrink: 0; }
+  .cat-bar-wrap { flex: 1; background: rgba(255,255,255,0.05); border-radius: 2px; height: 4px; }
+  .cat-bar { height: 100%; border-radius: 2px; background: var(--blue); }
+  .cat-score { font-family: 'Space Mono', monospace; font-size: 0.68rem; color: var(--muted); width: 28px; text-align: right; }
+
+  .proof-strip {
+    background: rgba(0,255,136,0.04);
+    border: 1px solid rgba(0,255,136,0.15);
+    border-radius: 8px;
+    padding: 0.9rem 1.2rem;
+    margin-top: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+  .proof-label { font-size: 0.8rem; color: var(--green); font-weight: 700; }
+  .proof-hash { font-family: 'Space Mono', monospace; font-size: 0.68rem; color: var(--muted); flex: 1; word-break: break-all; }
+
+  .error-box {
+    display: none;
+    background: rgba(255,68,102,0.08);
+    border: 1px solid rgba(255,68,102,0.3);
+    border-radius: 8px;
+    padding: 1rem;
+    margin-top: 1rem;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.8rem;
+    color: var(--red);
+  }
+
+  /* HOW IT WORKS */
+  .how { max-width: 700px; margin: 0 auto 4rem; padding: 0 1.5rem; position: relative; z-index: 1; }
+  .section-label { font-family: 'Space Mono', monospace; font-size: 0.72rem; color: var(--blue); letter-spacing: 3px; text-transform: uppercase; margin-bottom: 0.75rem; }
+  .steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 1rem; margin-top: 1.5rem; }
+  .step { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 1.2rem; text-align: center; }
+  .step-num { font-family: 'Space Mono', monospace; font-size: 0.65rem; color: var(--blue); letter-spacing: 2px; margin-bottom: 0.5rem; }
+  .step h3 { font-size: 0.88rem; font-weight: 800; margin-bottom: 0.4rem; }
+  .step p { font-size: 0.78rem; color: var(--muted); line-height: 1.5; }
+
+  footer {
+    text-align: center;
+    padding: 2rem;
+    border-top: 1px solid var(--border);
+    font-family: 'Space Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--muted);
+    position: relative;
+    z-index: 1;
+  }
+  footer a { color: var(--cyan); text-decoration: none; }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="logo">Arbitrum<span>Auditor</span></div>
+  <div class="nav-badge">
+    <span class="dot"></span>
+    Live · ERC-8004 Registered
+  </div>
+</nav>
+
+<section class="hero">
+  <h1>Audit Any <em>Arbitrum</em><br>Contract Instantly</h1>
+  <p class="hero-sub">AI-powered security analysis with on-chain proof. Paste any contract address and get a full report in under 60 seconds.</p>
+</section>
+
+<section class="audit-section">
+  <div class="audit-box">
+    <div class="input-row">
+      <input
+        class="addr-input"
+        id="addr"
+        type="text"
+        placeholder="0x Contract address..."
+      />
+      <select class="network-select" id="network">
+        <option value="mainnet">Mainnet</option>
+        <option value="sepolia">Sepolia</option>
+      </select>
+    </div>
+    <button class="audit-btn" id="auditBtn" onclick="runAudit()">
+      Run Security Audit
+    </button>
+    <div class="examples">
+      <span style="font-family:'Space Mono',monospace;font-size:0.7rem;color:var(--muted);align-self:center;">Try:</span>
+      <button class="example-btn" onclick="setExample('0x1F98431c8aD98523631AE4a59f267346ea31F984','mainnet')">Uniswap V3</button>
+      <button class="example-btn" onclick="setExample('0xaf88d065e77c8cC2239327C5EDb3A432268e5831','mainnet')">USDC (Arb)</button>
+      <button class="example-btn" onclick="setExample('0x912CE59144191C1204E64559FE8253a0e49E6548','mainnet')">ARB Token</button>
+    </div>
+
+    <div class="loading" id="loading">
+      <div class="spinner"></div>
+      <div id="loadingText">Fetching contract source...</div>
+    </div>
+
+    <div class="error-box" id="errorBox"></div>
+
+    <div class="result" id="result">
+      <div class="result-header">
+        <div>
+          <div class="contract-name" id="contractName"></div>
+          <div class="contract-addr" id="contractAddr"></div>
+        </div>
+        <div class="risk-pill" id="riskPill"></div>
+      </div>
+
+      <div class="summary-text" id="summary"></div>
+
+      <div class="findings-title" id="findingsTitle"></div>
+      <div id="findingsList"></div>
+
+      <div class="findings-title" style="margin-top:1.5rem;">Category Breakdown</div>
+      <div class="cats-grid" id="catsGrid"></div>
+
+      <div class="proof-strip" id="proofStrip" style="display:none">
+        <div class="proof-label">On-Chain Proof</div>
+        <div class="proof-hash" id="proofHash"></div>
+        <a id="proofLink" href="#" target="_blank" style="font-family:'Space Mono',monospace;font-size:0.7rem;color:var(--cyan);white-space:nowrap;">View on Arbiscan →</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="how">
+  <div class="section-label">// How It Works</div>
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">01</div>
+      <h3>Fetch Source</h3>
+      <p>Pulls verified Solidity code from Arbiscan automatically</p>
+    </div>
+    <div class="step">
+      <div class="step-num">02</div>
+      <h3>AI Analysis</h3>
+      <p>8-category security review using Groq Llama 3.3 70B</p>
+    </div>
+    <div class="step">
+      <div class="step-num">03</div>
+      <h3>On-Chain Proof</h3>
+      <p>Audit hash stored on Arbitrum — tamper-proof forever</p>
+    </div>
+    <div class="step">
+      <div class="step-num">04</div>
+      <h3>Full Report</h3>
+      <p>Risk score, findings, recommendations in seconds</p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  Built by <a href="https://github.com/Investorquab" target="_blank">investorquab</a> ·
+  <a href="https://github.com/Investorquab/arbitrum-auditor-agent" target="_blank">GitHub</a> ·
+  Registered on <a href="https://sepolia.arbiscan.io/tx/0x26a4a3a4e7590aa851fd022e22dd96dbb245b2de7ca71476d26da72cd304209b" target="_blank">Arbitrum Identity Registry (ERC-8004)</a>
+</footer>
+
+<script>
+  // ── Replace this with your Render URL after deploying ──
+  const API_URL = window.location.hostname === 'localhost'
+    ? 'http://localhost:3000'
+    : 'https://YOUR-RENDER-APP-NAME.onrender.com';
+
+  function setExample(addr, net) {
+    document.getElementById('addr').value = addr;
+    document.getElementById('network').value = net;
+  }
+
+  const catLabels = {
+    reentrancy: 'Reentrancy',
+    accessControl: 'Access Control',
+    integerSafety: 'Integer Safety',
+    oracleManipulation: 'Oracle Manipulation',
+    upgradeSafety: 'Upgrade Safety',
+    assetHandling: 'Asset Handling',
+    arbitrumSpecifics: 'Arbitrum Specifics',
+    logicErrors: 'Logic Errors',
+  };
+
+  const loadingSteps = [
+    'Fetching contract source from Arbiscan...',
+    'Running AI security analysis...',
+    'Computing risk score...',
+    'Generating report...',
+  ];
+
+  async function runAudit() {
+    const address = document.getElementById('addr').value.trim();
+    const network = document.getElementById('network').value;
+
+    if (!address.startsWith('0x') || address.length < 10) {
+      showError('Please enter a valid contract address starting with 0x');
+      return;
+    }
+
+    const btn = document.getElementById('auditBtn');
+    const loading = document.getElementById('loading');
+    const result = document.getElementById('result');
+    const errorBox = document.getElementById('errorBox');
+
+    btn.disabled = true;
+    loading.style.display = 'block';
+    result.style.display = 'none';
+    errorBox.style.display = 'none';
+
+    // Animate loading text
+    let step = 0;
+    const loadingText = document.getElementById('loadingText');
+    const interval = setInterval(() => {
+      step = (step + 1) % loadingSteps.length;
+      loadingText.textContent = loadingSteps[step];
+    }, 4000);
+
+    try {
+      const res = await fetch(`${API_URL}/audit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ address, network }),
+      });
+
+      const data = await res.json();
+      clearInterval(interval);
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Audit failed');
+      }
+
+      renderResult(data);
+    } catch (err) {
+      clearInterval(interval);
+      showError(err.message || 'Something went wrong. Please try again.');
+    } finally {
+      btn.disabled = false;
+      loading.style.display = 'none';
+    }
+  }
+
+  function renderResult(data) {
+    const { contract, audit } = data;
+
+    document.getElementById('contractName').textContent = contract.name || 'Unknown Contract';
+    document.getElementById('contractAddr').textContent = contract.address;
+
+    const pill = document.getElementById('riskPill');
+    pill.textContent = `${audit.riskIcon} ${audit.riskLevel} · ${audit.riskScore}/100`;
+    pill.className = `risk-pill risk-${audit.riskLevel}`;
+
+    document.getElementById('summary').textContent = audit.summary;
+
+    const sevOrder = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'INFO'];
+    const counts = {};
+    for (const sev of sevOrder) counts[sev] = audit.findings.filter(f => f.severity === sev).length;
+    const countStr = sevOrder.filter(s => counts[s] > 0).map(s => `${s}: ${counts[s]}`).join(' · ');
+    document.getElementById('findingsTitle').textContent = `Findings (${audit.findingsCount}) — ${countStr}`;
+
+    const list = document.getElementById('findingsList');
+    list.innerHTML = '';
+    for (const sev of sevOrder) {
+      for (const f of audit.findings.filter(f => f.severity === sev)) {
+        list.innerHTML += `
+          <div class="finding">
+            <div class="finding-top">
+              <div class="finding-title">${f.title}</div>
+              <span class="finding-sev sev-${f.severity}">${f.severity}</span>
+            </div>
+            <div class="finding-desc">${f.description}</div>
+            ${f.recommendation ? `<div class="finding-rec">→ ${f.recommendation}</div>` : ''}
+          </div>`;
+      }
+    }
+
+    const grid = document.getElementById('catsGrid');
+    grid.innerHTML = '';
+    for (const [key, label] of Object.entries(catLabels)) {
+      const cat = audit.categories[key] || { score: 0 };
+      grid.innerHTML += `
+        <div class="cat-row">
+          <span class="cat-name">${label}</span>
+          <div class="cat-bar-wrap"><div class="cat-bar" style="width:${cat.score * 10}%"></div></div>
+          <span class="cat-score">${cat.score}/10</span>
+        </div>`;
+    }
+
+    document.getElementById('result').style.display = 'block';
+    document.getElementById('result').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  function showError(msg) {
+    const box = document.getElementById('errorBox');
+    box.textContent = `Error: ${msg}`;
+    box.style.display = 'block';
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('auditBtn').disabled = false;
+  }
+</script>
+</body>
+</html>

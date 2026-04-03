@@ -5,6 +5,8 @@
 
 import express from "express";
 import { config } from "dotenv";
+import { fileURLToPath } from "url";
+import { dirname, join } from "path";
 import {
   fetchContractSource,
   fetchContractInfo,
@@ -15,41 +17,20 @@ import {
 
 config();
 
+const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
 app.use(express.json());
 
-// Allow CORS for web access
 app.use((req, res, next) => {
   res.header("Access-Control-Allow-Origin", "*");
   res.header("Access-Control-Allow-Headers", "Content-Type");
   next();
 });
 
-// ── Health check ──────────────────────────────────────────────────────────────
-app.get("/", (req, res) => {
-  res.json({
-    name: "ArbitrumContractAuditor",
-    description: "AI-powered smart contract security auditor for Arbitrum",
-    version: "1.0.0",
-    status: "online",
-    registered_on: "Arbitrum Sepolia Identity Registry (ERC-8004)",
-    agent_address: "0xcD7f401774D579B16CEBc5e52550E245d6D88420",
-    registration_tx: "0x26a4a3a4e7590aa851fd022e22dd96dbb245b2de7ca71476d26da72cd304209b",
-    endpoints: {
-      audit: "POST /audit",
-      health: "GET /health",
-    },
-    example: {
-      method: "POST",
-      path: "/audit",
-      body: {
-        address: "0x1F98431c8aD98523631AE4a59f267346ea31F984",
-        network: "mainnet",
-      },
-    },
-  });
-});
+// Serve landing page
+app.use(express.static(join(__dirname, "../public")));
 
+// ── Health check ──────────────────────────────────────────────────────────────
 app.get("/health", (req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
